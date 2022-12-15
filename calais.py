@@ -31,12 +31,28 @@ class Calais():
     user_directives = {"allowDistribution":"false", "allowSearch":"false", "externalID":None}
     external_metadata = {}
 
-    def __init__(self, api_key, submitter="python-calais client v.%s" % __version__):
+    def __init__(self, api_key, submitter=f"python-calais client v.{__version__}"):
         self.api_key = api_key
         self.user_directives["submitter"]=submitter
 
     def _get_params_XML(self):
-        return PARAMS_XML % (" ".join('c:%s="%s"' % (k,escape(v)) for (k,v) in self.processing_directives.items() if v), " ".join('c:%s="%s"' % (k,escape(v)) for (k,v) in self.user_directives.items() if v), " ".join('c:%s="%s"' % (k,escape(v)) for (k,v) in self.external_metadata.items() if v))
+        return PARAMS_XML % (
+            " ".join(
+                f'c:{k}="{escape(v)}"'
+                for (k, v) in self.processing_directives.items()
+                if v
+            ),
+            " ".join(
+                f'c:{k}="{escape(v)}"'
+                for (k, v) in self.user_directives.items()
+                if v
+            ),
+            " ".join(
+                f'c:{k}="{escape(v)}"'
+                for (k, v) in self.external_metadata.items()
+                if v
+            ),
+        )
 
     def rest_POST(self, content):
         params = urllib.urlencode({'licenseID':self.api_key, 'content':str(content.encode("utf-8")), 'paramsXML':self._get_params_XML()})
@@ -56,7 +72,7 @@ class Calais():
         from random import choice
         chars = string.letters + string.digits
         np = ""
-        for i in range(10):
+        for _ in range(10):
             np = np + choice(chars)
         return np
 
@@ -98,17 +114,15 @@ class Calais():
         try:
             filetype = mimetypes.guess_type(fn)[0]
         except:
-            raise ValueError("Can not determine file type for '%s'" % fn)
+            raise ValueError(f"Can not determine file type for '{fn}'")
         if filetype == "text/plain":
             content_type="TEXT/RAW"
-            f = open(fn)
-            content = f.read()
-            f.close()
+            with open(fn) as f:
+                content = f.read()
         elif filetype == "text/html":
             content_type = "TEXT/HTML"
-            f = open(fn)
-            content = self.preprocess_html(f.read())
-            f.close()
+            with open(fn) as f:
+                content = self.preprocess_html(f.read())
         else:
             raise ValueError("Only plaintext and HTML files are currently supported.  ")
         return self.analyze(content, content_type=content_type, external_id=fn)
